@@ -51,8 +51,8 @@ horn_start_delay_range_ms = (1000, 10000)
 
 # New parameters for more variation
 horn_duration_variation_ms = 250  # Vary horn blast lengths
-silence_variation_ms = 400  # Vary silence between blasts
-tiny_break_variation_ms = 300  # Vary the tiny break duration
+silence_variation_ms = 200  # Vary silence between blasts
+tiny_break_variation_ms = 200  # Vary the tiny break duration
 
 
 def random_volume(audio, variation_db=10):
