@@ -5,6 +5,7 @@ services:
     volumes:
       # Mount a local directory for audio files
       - ./samples:/app/samples
+      - ./docker_output:/app/output
 
   datagenerator:
     build:
