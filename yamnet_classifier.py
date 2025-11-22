@@ -234,29 +234,43 @@ class YAMNetCOLREGClassifier:
             Compiled Keras model
         """
         if use_temporal:
-            # LSTM-based temporal model - SIMPLIFIED to reduce overfitting
+            # LSTM-based temporal model - optimized for sequence patterns
             model = tf.keras.Sequential(
                 [
                     tf.keras.layers.Input(shape=input_shape),
                     # Masking layer to handle padded sequences
                     tf.keras.layers.Masking(mask_value=0.0),
-                    # Single bidirectional LSTM - simpler architecture
+                    # Bidirectional LSTM to capture patterns in both directions
                     tf.keras.layers.Bidirectional(
                         tf.keras.layers.LSTM(
-                            64,  # Reduced from 128
-                            return_sequences=False,
-                            dropout=0.5,  # Increased dropout
-                            recurrent_dropout=0.3,
+                            128,  # Enough capacity for temporal patterns
+                            return_sequences=True,  # Keep sequences for second layer
+                            dropout=0.4,
+                            recurrent_dropout=0.2,
                         )
                     ),
                     tf.keras.layers.BatchNormalization(),
-                    # Single dense layer before output
+                    # Second LSTM layer to capture higher-level patterns
+                    tf.keras.layers.Bidirectional(
+                        tf.keras.layers.LSTM(
+                            64,
+                            return_sequences=False,  # Compress to single vector
+                            dropout=0.4,
+                            recurrent_dropout=0.2,
+                        )
+                    ),
+                    tf.keras.layers.BatchNormalization(),
+                    # Dense layers for final classification
+                    tf.keras.layers.Dense(
+                        128,
+                        activation="relu",
+                        kernel_regularizer=tf.keras.regularizers.l2(0.01),
+                    ),
+                    tf.keras.layers.Dropout(0.4),
                     tf.keras.layers.Dense(
                         64,
                         activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(
-                            0.02
-                        ),  # Stronger L2
+                        kernel_regularizer=tf.keras.regularizers.l2(0.01),
                     ),
                     tf.keras.layers.Dropout(0.5),
                     # Output layer
@@ -563,8 +577,9 @@ def main():
     # Initialize classifier
     classifier = YAMNetCOLREGClassifier(dataset_path="dataset")
 
-    # Load dataset with POOLED features (more robust to noise)
-    X, y, class_names = classifier.load_dataset(use_temporal=False)
+    # Load dataset with TEMPORAL features to capture blast patterns over time
+    # This is crucial for COLREG signals where timing matters
+    X, y, class_names = classifier.load_dataset(use_temporal=True)
 
     # Train classifier with improved parameters
     history = classifier.train(
