@@ -40,11 +40,19 @@ short_duration_ms = 1000
 long_duration_ms = 5000
 silence_between_ms = 1000
 tiny_break_ms = 1500
-volume_variation_db = 2
+
+# Increased variation parameters for better generalization
+volume_variation_db = 6  # Increased from 2 - more realistic volume differences
 background_amplification_db = 2
-num_samples_per_class = 5  # TODO change to 101
+background_variation_db = 4  # Additional variation in background levels
+num_samples_per_class = 250
 target_duration_range_ms = (25000, 30000)
 horn_start_delay_range_ms = (1000, 10000)
+
+# New parameters for more variation
+horn_duration_variation_ms = 250  # Vary horn blast lengths
+silence_variation_ms = 400  # Vary silence between blasts
+tiny_break_variation_ms = 300  # Vary the tiny break duration
 
 
 def random_volume(audio, variation_db=10):
@@ -53,7 +61,10 @@ def random_volume(audio, variation_db=10):
 
 
 def add_background(signal, backgrounds, amplification_db=5):
-    bg = random.choice(backgrounds) + amplification_db
+    """Add background with variation in amplification level."""
+    # Vary background amplification more for diversity
+    bg_variation = random.uniform(-background_variation_db, background_variation_db)
+    bg = random.choice(backgrounds) + amplification_db + bg_variation
     if len(bg) < len(signal):
         bg = bg * (len(signal) // len(bg) + 1)
     bg = bg[: len(signal)]
@@ -61,17 +72,19 @@ def add_background(signal, backgrounds, amplification_db=5):
 
 
 def pad_with_background(audio, target_duration_ms, backgrounds, amplification_db=5):
-    """Pad audio to target_duration_ms using background noise instead of silence"""
+    """Extend or trim audio to target_duration_ms, maintaining background throughout"""
     current_duration = len(audio)
 
     if current_duration < target_duration_ms:
-        # Pad with background noise at the end
+        # Create continuous background for the entire target duration
         padding_needed = target_duration_ms - current_duration
-        bg = random.choice(backgrounds) + amplification_db
+        bg_variation = random.uniform(-background_variation_db, background_variation_db)
+        bg = random.choice(backgrounds) + amplification_db + bg_variation
         # Loop background if needed
         if len(bg) < padding_needed:
             bg = bg * (padding_needed // len(bg) + 1)
         bg_padding = bg[:padding_needed]
+        # Overlay padding background to continue seamlessly
         audio = audio + bg_padding
     elif current_duration > target_duration_ms:
         # Trim from the end
@@ -81,8 +94,20 @@ def pad_with_background(audio, target_duration_ms, backgrounds, amplification_db
 
 
 def generate_sequence(pattern, short_horn_file, long_horn_file, start_delay_ms):
-    short_horn = AudioSegment.from_file(short_horn_file)[:short_duration_ms]
-    long_horn = AudioSegment.from_file(long_horn_file)[:long_duration_ms]
+    # Add duration variation to horn blasts for more realism
+    short_dur = short_duration_ms + random.randint(
+        -horn_duration_variation_ms, horn_duration_variation_ms
+    )
+    long_dur = long_duration_ms + random.randint(
+        -horn_duration_variation_ms, horn_duration_variation_ms
+    )
+
+    # Ensure minimum durations
+    short_dur = max(600, short_dur)
+    long_dur = max(3500, long_dur)
+
+    short_horn = AudioSegment.from_file(short_horn_file)[:short_dur]
+    long_horn = AudioSegment.from_file(long_horn_file)[:long_dur]
 
     # Build horn sequence
     horn_sequence = AudioSegment.empty()
@@ -94,19 +119,31 @@ def generate_sequence(pattern, short_horn_file, long_horn_file, start_delay_ms):
             clip = random_volume(long_horn, volume_variation_db)
             horn_sequence += clip
         elif blast == "tiny_break":
-            horn_sequence += AudioSegment.silent(duration=tiny_break_ms)
+            # Vary tiny break duration
+            varied_break = tiny_break_ms + random.randint(
+                -tiny_break_variation_ms, tiny_break_variation_ms
+            )
+            varied_break = max(1000, varied_break)  # Minimum 1 second
+            horn_sequence += AudioSegment.silent(duration=varied_break)
 
         if i < len(pattern) - 1 and blast != "tiny_break":
-            horn_sequence += AudioSegment.silent(duration=silence_between_ms)
+            # Vary silence between blasts
+            varied_silence = silence_between_ms + random.randint(
+                -silence_variation_ms, silence_variation_ms
+            )
+            varied_silence = max(500, varied_silence)  # Minimum 0.5 seconds
+            horn_sequence += AudioSegment.silent(duration=varied_silence)
 
     # Create background that covers intro + horn sequence duration
     total_duration_needed = start_delay_ms + len(horn_sequence)
-    bg = random.choice(backgrounds) + background_amplification_db
+    bg_variation = random.uniform(-background_variation_db, background_variation_db)
+    bg = random.choice(backgrounds) + background_amplification_db + bg_variation
     if len(bg) < total_duration_needed:
         bg = bg * (total_duration_needed // len(bg) + 1)
     bg = bg[:total_duration_needed]
 
     # Overlay the horn sequence at the start_delay position
+    # Use mix=True to ensure background continues through and after the horn
     sequence = bg.overlay(horn_sequence, position=start_delay_ms)
 
     return sequence
@@ -153,7 +190,7 @@ for label, pattern in colreg_sequences.items():
 no_signal_folder = os.path.join(output_folder, "no_signal")
 os.makedirs(no_signal_folder, exist_ok=True)
 for i in range(num_samples_per_class):
-    # Generate background noise with varying content
+    # Generate background noise with varying content and levels
     target_duration = random.randint(*target_duration_range_ms)
 
     bg = random.choice(backgrounds)
@@ -162,7 +199,9 @@ for i in range(num_samples_per_class):
         bg = bg * (target_duration // len(bg) + 1)
     bg = bg[:target_duration]
 
-    bg = bg + background_amplification_db
+    # Apply varied amplification to background
+    bg_variation = random.uniform(-background_variation_db, background_variation_db)
+    bg = bg + background_amplification_db + bg_variation
     bg = random_volume(bg, volume_variation_db)
 
     filename = os.path.join(no_signal_folder, f"no_signal_{i}.mp3")

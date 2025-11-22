@@ -60,18 +60,23 @@ class YAMNetCOLREGClassifier:
 
         return waveform
 
-    def extract_yamnet_embeddings(self, waveform, use_temporal=True):
+    def extract_yamnet_embeddings(self, waveform, use_temporal=True, augment=False):
         """
         Extract YAMNet embeddings from audio waveform.
 
         Args:
             waveform: Audio waveform (numpy array)
             use_temporal: If True, return full sequence. If False, return pooled features.
+            augment: If True, apply random augmentation (for training)
 
         Returns:
             If use_temporal=True: Sequence of embeddings (time_steps, 1024)
             If use_temporal=False: Combined mean and max pooled embeddings (2048-dim)
         """
+        # Apply augmentation during training
+        if augment:
+            waveform = self._augment_audio(waveform)
+
         # YAMNet expects float32 tensor
         waveform_tensor = tf.convert_to_tensor(waveform, dtype=tf.float32)
 
@@ -92,6 +97,33 @@ class YAMNetCOLREGClassifier:
             # Concatenate for final feature vector
             combined_embedding = np.concatenate([mean_embedding, max_embedding])
             return combined_embedding
+
+    def _augment_audio(self, waveform):
+        """
+        Apply random augmentation to audio waveform.
+
+        Args:
+            waveform: Audio waveform (numpy array)
+
+        Returns:
+            Augmented waveform
+        """
+        # Randomly apply augmentations with 50% probability each
+        if np.random.random() < 0.5:
+            # Add Gaussian noise (very light)
+            noise_level = np.random.uniform(0.001, 0.005)
+            noise = np.random.normal(0, noise_level, waveform.shape)
+            waveform = waveform + noise
+
+        if np.random.random() < 0.5:
+            # Random volume adjustment
+            volume_change = np.random.uniform(0.8, 1.2)
+            waveform = waveform * volume_change
+
+        # Ensure values stay in valid range
+        waveform = np.clip(waveform, -1.0, 1.0)
+
+        return waveform
 
     def load_dataset(self, use_temporal=True):
         """
@@ -198,75 +230,54 @@ class YAMNetCOLREGClassifier:
             Compiled Keras model
         """
         if use_temporal:
-            # LSTM-based temporal model
+            # LSTM-based temporal model - SIMPLIFIED to reduce overfitting
             model = tf.keras.Sequential(
                 [
                     tf.keras.layers.Input(shape=input_shape),
                     # Masking layer to handle padded sequences
                     tf.keras.layers.Masking(mask_value=0.0),
-                    # First LSTM layer - bidirectional for better context
+                    # Single bidirectional LSTM - simpler architecture
                     tf.keras.layers.Bidirectional(
                         tf.keras.layers.LSTM(
-                            128,
-                            return_sequences=True,
-                            dropout=0.3,
-                            recurrent_dropout=0.2,
-                        )
-                    ),
-                    tf.keras.layers.BatchNormalization(),
-                    # Second LSTM layer
-                    tf.keras.layers.Bidirectional(
-                        tf.keras.layers.LSTM(
-                            64,
+                            64,  # Reduced from 128
                             return_sequences=False,
-                            dropout=0.3,
-                            recurrent_dropout=0.2,
+                            dropout=0.5,  # Increased dropout
+                            recurrent_dropout=0.3,
                         )
                     ),
                     tf.keras.layers.BatchNormalization(),
-                    # Dense layers for final classification
-                    tf.keras.layers.Dense(
-                        128,
-                        activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(0.01),
-                    ),
-                    tf.keras.layers.Dropout(0.4),
+                    # Single dense layer before output
                     tf.keras.layers.Dense(
                         64,
                         activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(0.01),
+                        kernel_regularizer=tf.keras.regularizers.l2(
+                            0.02
+                        ),  # Stronger L2
                     ),
-                    tf.keras.layers.Dropout(0.3),
+                    tf.keras.layers.Dropout(0.5),
                     # Output layer
                     tf.keras.layers.Dense(num_classes, activation="softmax"),
                 ]
             )
         else:
-            # Dense model for pooled features
+            # Dense model for pooled features - SIMPLIFIED
             model = tf.keras.Sequential(
                 [
                     tf.keras.layers.Input(shape=(input_shape,)),
                     tf.keras.layers.BatchNormalization(),
+                    # Simpler architecture with fewer parameters
                     tf.keras.layers.Dense(
-                        512,
+                        256,  # Reduced from 512
                         activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(0.01),
+                        kernel_regularizer=tf.keras.regularizers.l2(0.02),
                     ),
-                    tf.keras.layers.BatchNormalization(),
                     tf.keras.layers.Dropout(0.5),
                     tf.keras.layers.Dense(
-                        256,
+                        128,  # Reduced from 256
                         activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(0.01),
+                        kernel_regularizer=tf.keras.regularizers.l2(0.02),
                     ),
-                    tf.keras.layers.BatchNormalization(),
                     tf.keras.layers.Dropout(0.4),
-                    tf.keras.layers.Dense(
-                        128,
-                        activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(0.01),
-                    ),
-                    tf.keras.layers.Dropout(0.3),
                     tf.keras.layers.Dense(num_classes, activation="softmax"),
                 ]
             )
@@ -279,7 +290,7 @@ class YAMNetCOLREGClassifier:
 
         return model
 
-    def train(self, X, y, test_size=0.2, epochs=150, batch_size=16):
+    def train(self, X, y, test_size=0.2, val_size=0.15, epochs=150, batch_size=32):
         """
         Train the classifier.
 
@@ -287,18 +298,29 @@ class YAMNetCOLREGClassifier:
             X: Feature matrix
             y: Labels
             test_size: Proportion of data for testing
+            val_size: Proportion of training data for validation
             epochs: Number of training epochs
-            batch_size: Batch size for training
+            batch_size: Batch size for training (increased for better generalization)
 
         Returns:
             Training history
         """
-        # Split dataset
-        X_train, X_test, y_train, y_test = train_test_split(
+        # Split dataset into train+val and test
+        X_train_val, X_test, y_train_val, y_test = train_test_split(
             X, y, test_size=test_size, random_state=42, stratify=y
         )
 
+        # Further split train into train and validation
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_train_val,
+            y_train_val,
+            test_size=val_size,
+            random_state=42,
+            stratify=y_train_val,
+        )
+
         print(f"\nTraining set: {X_train.shape[0]} samples")
+        print(f"Validation set: {X_val.shape[0]} samples")
         print(f"Test set: {X_test.shape[0]} samples")
 
         # Build model
@@ -317,13 +339,20 @@ class YAMNetCOLREGClassifier:
         print("\nModel architecture:")
         self.classifier_model.summary()
 
-        # Callbacks
+        # Callbacks - improved for better generalization
         early_stopping = tf.keras.callbacks.EarlyStopping(
-            monitor="val_loss", patience=20, restore_best_weights=True
+            monitor="val_loss",
+            patience=15,  # Reduced from 20 - stop sooner if not improving
+            restore_best_weights=True,
+            verbose=1,
         )
 
         reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
-            monitor="val_loss", factor=0.5, patience=7, min_lr=1e-6, verbose=1
+            monitor="val_loss",
+            factor=0.5,
+            patience=5,  # Reduced from 7
+            min_lr=1e-6,
+            verbose=1,
         )
 
         # Train
@@ -331,7 +360,7 @@ class YAMNetCOLREGClassifier:
         history = self.classifier_model.fit(
             X_train,
             y_train,
-            validation_data=(X_test, y_test),
+            validation_data=(X_val, y_val),  # Use separate validation set
             epochs=epochs,
             batch_size=batch_size,
             callbacks=[early_stopping, reduce_lr],
@@ -513,9 +542,15 @@ def main():
     # Load dataset and extract features (with temporal modeling)
     X, y, class_names = classifier.load_dataset(use_temporal=True)
 
-    # Train classifier
-    ## TODO set epochs to 100
-    history = classifier.train(X, y, test_size=0.2, epochs=5, batch_size=16)
+    # Train classifier with improved parameters
+    history = classifier.train(
+        X,
+        y,
+        test_size=0.2,  # 20% held out for final test
+        val_size=0.15,  # 15% of training data for validation
+        epochs=100,  # Will stop early if not improving
+        batch_size=32,  # Larger batch = better generalization
+    )
 
     # Save model
     classifier.save_model("output/colreg_classifier")
