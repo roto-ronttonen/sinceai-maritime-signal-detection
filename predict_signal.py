@@ -22,18 +22,18 @@ def predict_audio_file(model_path, audio_file):
     classifier.load_model(model_path)
 
     # Make prediction
-    print(f"\nAnalyzing audio file: {audio_file}")
+    print_if_main(f"\nAnalyzing audio file: {audio_file}")
     predicted_class, confidence, probabilities = classifier.predict(audio_file)
 
     # Display results
-    print("\n" + "=" * 60)
-    print("PREDICTION RESULTS")
-    print("=" * 60)
-    print(f"\nPredicted Signal: {predicted_class.upper().replace('_', ' ')}")
-    print(f"Confidence: {confidence * 100:.2f}%")
+    print_if_main("\n" + "=" * 60)
+    print_if_main("PREDICTION RESULTS")
+    print_if_main("=" * 60)
+    print_if_main(f"\nPredicted Signal: {predicted_class.upper().replace('_', ' ')}")
+    print_if_main(f"Confidence: {confidence * 100:.2f}%")
 
-    print("\nAll Class Probabilities:")
-    print("-" * 60)
+    print_if_main("\nAll Class Probabilities:")
+    print_if_main("-" * 60)
 
     # Sort by probability for better readability
     sorted_results = sorted(
@@ -42,9 +42,9 @@ def predict_audio_file(model_path, audio_file):
 
     for class_name, prob in sorted_results:
         bar = "█" * int(prob * 50)
-        print(f"{class_name:25s} {prob * 100:6.2f}% {bar}")
+        print_if_main(f"{class_name:25s} {prob * 100:6.2f}% {bar}")
 
-    print("=" * 60)
+    print_if_main("=" * 60)
 
     return predicted_class, confidence
 
@@ -85,6 +85,11 @@ def main():
 
         traceback.print_exc()
         sys.exit(1)
+
+
+def print_if_main(to_print: str):
+    if __name__ == "__main__":
+        print(to_print)
 
 
 if __name__ == "__main__":

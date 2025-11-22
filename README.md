@@ -74,3 +74,9 @@ Run the test suite:
 ```bash
 uv run pytest test_yamnet_classifier.py
 ```
+
+# Results
+
+Accuracy ended up being ~95% while training.
+
+Against unseen samples (some handcrafted for realism) it made the following predictions:
