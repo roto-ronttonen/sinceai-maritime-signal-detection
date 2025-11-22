@@ -71,7 +71,7 @@ class YAMNetCOLREGClassifier:
 
         Returns:
             If use_temporal=True: Sequence of embeddings (time_steps, 1024)
-            If use_temporal=False: Combined mean and max pooled embeddings (2048-dim)
+            If use_temporal=False: Combined mean and max pooled, std embeddings (3072-dim)
         """
         # Apply augmentation during training
         if augment:
@@ -90,12 +90,16 @@ class YAMNetCOLREGClassifier:
             # Return full sequence for temporal modeling
             return embeddings_np
         else:
-            # Use both mean and max pooling for richer features
+            # Use mean, max, AND std pooling for more robust features
+            # Std helps capture variability in noisy signals
             mean_embedding = np.mean(embeddings_np, axis=0)
             max_embedding = np.max(embeddings_np, axis=0)
+            std_embedding = np.std(embeddings_np, axis=0)
 
             # Concatenate for final feature vector
-            combined_embedding = np.concatenate([mean_embedding, max_embedding])
+            combined_embedding = np.concatenate(
+                [mean_embedding, max_embedding, std_embedding]
+            )
             return combined_embedding
 
     def _augment_audio(self, waveform):
@@ -260,30 +264,41 @@ class YAMNetCOLREGClassifier:
                 ]
             )
         else:
-            # Dense model for pooled features - SIMPLIFIED
+            # Dense model for pooled features - optimized for noisy data
             model = tf.keras.Sequential(
                 [
                     tf.keras.layers.Input(shape=(input_shape,)),
                     tf.keras.layers.BatchNormalization(),
-                    # Simpler architecture with fewer parameters
+                    # First layer - larger to capture complex patterns
                     tf.keras.layers.Dense(
-                        256,  # Reduced from 512
+                        512,
                         activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(0.02),
+                        kernel_regularizer=tf.keras.regularizers.l2(0.01),
                     ),
+                    tf.keras.layers.BatchNormalization(),
                     tf.keras.layers.Dropout(0.5),
+                    # Second layer
                     tf.keras.layers.Dense(
-                        128,  # Reduced from 256
+                        256,
                         activation="relu",
-                        kernel_regularizer=tf.keras.regularizers.l2(0.02),
+                        kernel_regularizer=tf.keras.regularizers.l2(0.01),
                     ),
                     tf.keras.layers.Dropout(0.4),
+                    # Third layer - helps with noise robustness
+                    tf.keras.layers.Dense(
+                        128,
+                        activation="relu",
+                        kernel_regularizer=tf.keras.regularizers.l2(0.01),
+                    ),
+                    tf.keras.layers.Dropout(0.3),
                     tf.keras.layers.Dense(num_classes, activation="softmax"),
                 ]
             )
 
         model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+            optimizer=tf.keras.optimizers.Adam(
+                learning_rate=0.001, clipnorm=1.0  # Gradient clipping for stability
+            ),
             loss="sparse_categorical_crossentropy",
             metrics=["accuracy"],
         )
@@ -339,20 +354,29 @@ class YAMNetCOLREGClassifier:
         print("\nModel architecture:")
         self.classifier_model.summary()
 
-        # Callbacks - improved for better generalization
+        # Callbacks - optimized for noisy data
         early_stopping = tf.keras.callbacks.EarlyStopping(
             monitor="val_loss",
-            patience=15,  # Reduced from 20 - stop sooner if not improving
+            patience=20,  # More patience for noisy data
             restore_best_weights=True,
             verbose=1,
+            min_delta=0.001,  # Require meaningful improvement
         )
 
         reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
             monitor="val_loss",
             factor=0.5,
-            patience=5,  # Reduced from 7
-            min_lr=1e-6,
+            patience=8,  # More patience before reducing LR
+            min_lr=1e-7,
             verbose=1,
+        )
+
+        # Add checkpoint to save best model
+        checkpoint = tf.keras.callbacks.ModelCheckpoint(
+            "output/best_model_checkpoint.keras",
+            monitor="val_loss",
+            save_best_only=True,
+            verbose=0,
         )
 
         # Train
@@ -363,7 +387,7 @@ class YAMNetCOLREGClassifier:
             validation_data=(X_val, y_val),  # Use separate validation set
             epochs=epochs,
             batch_size=batch_size,
-            callbacks=[early_stopping, reduce_lr],
+            callbacks=[early_stopping, reduce_lr, checkpoint],
             verbose=1,
         )
 
@@ -539,17 +563,17 @@ def main():
     # Initialize classifier
     classifier = YAMNetCOLREGClassifier(dataset_path="dataset")
 
-    # Load dataset and extract features (with temporal modeling)
-    X, y, class_names = classifier.load_dataset(use_temporal=True)
+    # Load dataset with POOLED features (more robust to noise)
+    X, y, class_names = classifier.load_dataset(use_temporal=False)
 
     # Train classifier with improved parameters
     history = classifier.train(
         X,
         y,
-        test_size=0.2,  # 20% held out for final test
-        val_size=0.15,  # 15% of training data for validation
-        epochs=100,  # Will stop early if not improving. Lower epochs if you want to run it fast
-        batch_size=32,  # Larger batch = better generalization
+        test_size=0.2,
+        val_size=0.15,
+        epochs=100,  # Will stop early if not improving
+        batch_size=32,
     )
 
     # Save model

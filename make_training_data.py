@@ -41,11 +41,11 @@ long_duration_ms = 5000
 silence_between_ms = 1000
 tiny_break_ms = 1500
 
-# Increased variation parameters for better generalization
-volume_variation_db = 6  # Increased from 2 - more realistic volume differences
+# AGGRESSIVE variation to match real-world conditions
+volume_variation_db = 8  # More variation in horn volume
 background_amplification_db = 2
-background_variation_db = 4  # Additional variation in background levels
-num_samples_per_class = 250  # Lower num samples per class if you want to run it faster
+background_variation_db = 10  # MUCH more background variation (was 4)
+num_samples_per_class = 250
 target_duration_range_ms = (25000, 30000)
 horn_start_delay_range_ms = (1000, 10000)
 
@@ -53,6 +53,9 @@ horn_start_delay_range_ms = (1000, 10000)
 horn_duration_variation_ms = 250  # Vary horn blast lengths
 silence_variation_ms = 200  # Vary silence between blasts
 tiny_break_variation_ms = 200  # Vary the tiny break duration
+
+# SNR (Signal-to-Noise Ratio) variation - simulate different noise conditions
+snr_range_db = (-5, 15)  # From very noisy (-5dB) to clean (15dB)
 
 
 def random_volume(audio, variation_db=10):
@@ -134,17 +137,26 @@ def generate_sequence(pattern, short_horn_file, long_horn_file, start_delay_ms):
             varied_silence = max(500, varied_silence)  # Minimum 0.5 seconds
             horn_sequence += AudioSegment.silent(duration=varied_silence)
 
-    # Create background that covers intro + horn sequence duration
+    # Create background with REALISTIC noise levels
     total_duration_needed = start_delay_ms + len(horn_sequence)
+
+    # Random SNR (Signal-to-Noise Ratio) for each sample
+    target_snr_db = random.uniform(*snr_range_db)
+
+    # Get background and apply variation
     bg_variation = random.uniform(-background_variation_db, background_variation_db)
     bg = random.choice(backgrounds) + background_amplification_db + bg_variation
     if len(bg) < total_duration_needed:
         bg = bg * (total_duration_needed // len(bg) + 1)
     bg = bg[:total_duration_needed]
 
+    # Adjust horn volume relative to background to achieve target SNR
+    # This simulates different recording conditions
+    horn_volume_adjustment = random.uniform(-6, 6)  # +/- 6dB variation
+    adjusted_horn = horn_sequence + horn_volume_adjustment
+
     # Overlay the horn sequence at the start_delay position
-    # Use mix=True to ensure background continues through and after the horn
-    sequence = bg.overlay(horn_sequence, position=start_delay_ms)
+    sequence = bg.overlay(adjusted_horn, position=start_delay_ms)
 
     return sequence
 
