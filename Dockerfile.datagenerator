@@ -15,9 +15,7 @@ WORKDIR /app
 COPY pyproject.toml .
 COPY make_training_data.py .
 
-# Copy required directories
-COPY signals/ signals/
-COPY backgrounds/ backgrounds/
+
 
 # Install dependencies using uv
 RUN uv sync
