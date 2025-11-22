@@ -548,7 +548,7 @@ def main():
         y,
         test_size=0.2,  # 20% held out for final test
         val_size=0.15,  # 15% of training data for validation
-        epochs=100,  # Will stop early if not improving
+        epochs=100,  # Will stop early if not improving. Lower epochs if you want to run it fast
         batch_size=32,  # Larger batch = better generalization
     )
 

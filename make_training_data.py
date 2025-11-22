@@ -45,7 +45,7 @@ tiny_break_ms = 1500
 volume_variation_db = 6  # Increased from 2 - more realistic volume differences
 background_amplification_db = 2
 background_variation_db = 4  # Additional variation in background levels
-num_samples_per_class = 250
+num_samples_per_class = 250  # Lower num samples per class if you want to run it faster
 target_duration_range_ms = (25000, 30000)
 horn_start_delay_range_ms = (1000, 10000)
 
