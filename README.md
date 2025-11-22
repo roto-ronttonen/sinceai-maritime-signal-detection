@@ -39,12 +39,19 @@ Classify maritime horn signals in audio files:
 # Single file prediction
 uv run predict_signal.py path/to/audio.mp3
 
+# Or against all files in samples
+uv run main.py
+
 # Predict samples folder with docker
 docker compose up classifier
 
 ```
 
-### 4. Test the Implementation
+### 4. Run everything in sequence
+
+`./run_pipeline.sh`
+
+### 5. Test the Implementation
 
 Run the test suite:
 

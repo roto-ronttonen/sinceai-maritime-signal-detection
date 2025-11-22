@@ -514,7 +514,8 @@ def main():
     X, y, class_names = classifier.load_dataset(use_temporal=True)
 
     # Train classifier
-    history = classifier.train(X, y, test_size=0.2, epochs=100, batch_size=16)
+    ## TODO set epochs to 100
+    history = classifier.train(X, y, test_size=0.2, epochs=5, batch_size=16)
 
     # Save model
     classifier.save_model("output/colreg_classifier")

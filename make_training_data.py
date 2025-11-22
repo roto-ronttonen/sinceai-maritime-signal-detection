@@ -42,7 +42,7 @@ silence_between_ms = 1000
 tiny_break_ms = 1500
 volume_variation_db = 2
 background_amplification_db = 2
-num_samples_per_class = 101
+num_samples_per_class = 5  # TODO change to 101
 target_duration_range_ms = (25000, 30000)
 horn_start_delay_range_ms = (1000, 10000)
 

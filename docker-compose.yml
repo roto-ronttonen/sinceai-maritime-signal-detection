@@ -2,6 +2,8 @@ services:
   classifier:
     build: .
     image: sinceai-classifier
+    environment:
+      - PYTHONUNBUFFERED=1
     volumes:
       # Mount a local directory for audio files
       - ./samples:/app/samples
@@ -12,6 +14,8 @@ services:
       context: .
       dockerfile: Dockerfile.datagenerator
     image: sinceai-datagenerator
+    environment:
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./signals:/app/signals
       - ./backgrounds:/app/backgrounds
@@ -22,6 +26,8 @@ services:
       context: .
       dockerfile: Dockerfile.trainclassifier
     image: sinceai-trainclassifier
+    environment:
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./docker_dataset:/app/dataset
       - ./docker_output:/app/output

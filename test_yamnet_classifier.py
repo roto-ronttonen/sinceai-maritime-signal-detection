@@ -3,6 +3,8 @@ Pytest tests for YAMNet COLREG classifier.
 
 Tests that each sample in the dataset is correctly predicted -
 the top predicted class should match the actual label.
+
+Though this test is a bit silly as it runs against data used for training. :-) Anyways manual testing can be done with data in samples folder.
 """
 
 import pytest
@@ -49,11 +51,9 @@ def test_predict_sample(classifier, audio_file, expected_label):
     """Test that the predicted class matches the expected label for each sample."""
     predicted_class, confidence, probabilities = classifier.predict(audio_file)
 
-    assert predicted_class == expected_label, (
-        f"Prediction failed for {Path(audio_file).name}\n"
-        f"Expected: {expected_label}\n"
-        f"Got: {predicted_class} (confidence: {confidence:.2%})"
-    )
+    assert (
+        predicted_class == expected_label
+    ), f"Prediction failed for {Path(audio_file).name} Expected: {expected_label} Got: {predicted_class} (confidence: {confidence:.2%})"
 
 
 if __name__ == "__main__":
