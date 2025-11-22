@@ -1,0 +1,37 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache
+
+# Virtual environments
+.venv
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Training dataset (too large, not needed for inference)
+dataset/
+
+# Documentation
+README.md
+AGENTS.md
+
+# Scripts not needed for inference
+make_training_data.py
+test_*.py
+batch_predict.py
+run.sh
+test.sh
+
+# IDE
+.vscode/
+.idea/

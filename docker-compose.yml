@@ -1,0 +1,7 @@
+services:
+  classifier:
+    build: .
+    image: sinceai-classifier
+    volumes:
+      # Mount a local directory for audio files
+      - ./samples:/app/samples
