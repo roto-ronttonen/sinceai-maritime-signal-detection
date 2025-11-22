@@ -44,7 +44,7 @@ silence_between_ms = 1000
 tiny_break_ms = 1500
 volume_variation_db = 10
 background_amplification_db = 5  # How much to amplify background sounds
-num_samples_per_class = 50
+num_samples_per_class = 101
 pre_horn_silence_range = (2000, 4000)  # 0–1s random silence at start
 post_horn_silence_range = (2000, 4000)  # 0–1s random silence at end
 
