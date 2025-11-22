@@ -11,3 +11,5 @@ wheels/
 
 dataset/*
 docker_dataset/*
+
+.DS_Store
