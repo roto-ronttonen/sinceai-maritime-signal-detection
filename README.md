@@ -26,7 +26,7 @@ uv run yamnet_classifier.py
 docker compsoe up trainclassifier
 ```
 
-If you want to train the classifier faster reduce the number of epochs. Currently it does 100 epochs which on a cpu take around 15 minutes.
+If you want to train the classifier faster reduce the number of epochs. Currently it does 100 epochs which on a cpu take around 15-30 minutes.
 Found in code in:
 
 ```
