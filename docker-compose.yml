@@ -14,7 +14,7 @@ services:
     volumes:
       - ./signals:/app/signals
       - ./backgrounds:/app/backgrounds
-      - ./dataset:/app/dataset
+      - ./docker_dataset:/app/dataset
 
   trainclassifier:
     build:
@@ -22,5 +22,5 @@ services:
       dockerfile: Dockerfile.trainclassifier
     image: sinceai-trainclassifier
     volumes:
-      - ./dataset:/app/dataset
-      - ./output:/app/output
+      - ./docker_dataset:/app/dataset
+      - ./docker_output:/app/output
