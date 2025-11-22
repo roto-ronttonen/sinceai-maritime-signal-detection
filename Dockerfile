@@ -18,7 +18,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen
 
 COPY *.py ./
-COPY output/ ./output/
 
 
 
