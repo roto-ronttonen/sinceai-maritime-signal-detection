@@ -5,3 +5,22 @@ services:
     volumes:
       # Mount a local directory for audio files
       - ./samples:/app/samples
+
+  datagenerator:
+    build:
+      context: .
+      dockerfile: Dockerfile.datagenerator
+    image: sinceai-datagenerator
+    volumes:
+      - ./signals:/app/signals
+      - ./backgrounds:/app/backgrounds
+      - ./dataset:/app/dataset
+
+  trainclassifier:
+    build:
+      context: .
+      dockerfile: Dockerfile.trainclassifier
+    image: sinceai-trainclassifier
+    volumes:
+      - ./dataset:/app/dataset
+      - ./output:/app/output

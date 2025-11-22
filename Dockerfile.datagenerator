@@ -1,0 +1,26 @@
+FROM python:3.13-slim
+
+# Install ffmpeg for audio processing
+RUN apt-get update && \
+    apt-get install -y ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN pip install uv
+
+# Set working directory
+WORKDIR /app
+
+# Copy project files
+COPY pyproject.toml .
+COPY make_training_data.py .
+
+# Copy required directories
+COPY signals/ signals/
+COPY backgrounds/ backgrounds/
+
+# Install dependencies using uv
+RUN uv sync
+
+# Run the training data generation script
+CMD ["uv", "run", "make_training_data.py"]

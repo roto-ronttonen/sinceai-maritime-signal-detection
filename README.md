@@ -4,6 +4,10 @@ Generate training dataset with variations in background noise, volume, and horn 
 
 ```bash
 uv run make_training_data.py
+
+# Or in docker
+
+docker compose up datagenerator
 ```
 
 **Note**: Requires ffmpeg installed on system (`brew install ffmpeg` on macOS)
@@ -14,6 +18,10 @@ Train the deep learning classifier using YAMNet embeddings:
 
 ```bash
 uv run yamnet_classifier.py
+
+## Or in docker
+
+docker compsoe up trainclassifier
 ```
 
 This will:
@@ -32,7 +40,7 @@ Classify maritime horn signals in audio files:
 uv run predict_signal.py path/to/audio.mp3
 
 # Predict samples folder with docker
-docker compose up
+docker compose up classifier
 
 ```
 
